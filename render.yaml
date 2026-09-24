@@ -1,0 +1,23 @@
+# Optional: Render.com can read this file to set up the service and database
+# automatically ("Blueprint" deploy). Not required if you prefer to configure
+# the service by hand in Render's dashboard, or to deploy with Docker instead.
+services:
+  - type: web
+    name: whistledrop-backend
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements-prod.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --no-access-log
+    envVars:
+      - key: WHISTLEDROP_ENV
+        value: production
+      - key: WHISTLEDROP_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: whistledrop-db
+          property: connectionString
+
+databases:
+  - name: whistledrop-db
+    plan: free

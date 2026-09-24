@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WhistleDrop Moderator Dashboard</title>
+<style>
+  :root {
+    --bg: #0f172a; --panel: #1e293b; --text: #e2e8f0; --muted: #94a3b8;
+    --accent: #38bdf8; --green: #34d399; --amber: #fbbf24; --red: #f87171;
+    --border: #334155;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--text);
+  }
+  header {
+    padding: 1rem 1.5rem; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem;
+  }
+  header h1 { font-size: 1.1rem; margin: 0; }
+  header h1 span { color: var(--muted); font-weight: 400; }
+  main { padding: 1.5rem; max-width: 1100px; margin: 0 auto; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 1.25rem; margin-bottom: 1.25rem;
+  }
+  .row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+  input, select, textarea, button {
+    font: inherit; padding: .5rem .6rem; border-radius: 6px; border: 1px solid var(--border);
+    background: #0b1220; color: var(--text);
+  }
+  textarea { width: 100%; min-height: 3.5rem; resize: vertical; }
+  button {
+    background: var(--accent); color: #04121f; border: none; font-weight: 600; cursor: pointer;
+  }
+  button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  button.danger { background: var(--red); color: #2a0a0a; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .counts { display: flex; gap: .75rem; flex-wrap: wrap; }
+  .count-card {
+    background: #0b1220; border: 1px solid var(--border); border-radius: 8px;
+    padding: .75rem 1rem; min-width: 110px;
+  }
+  .count-card .n { font-size: 1.4rem; font-weight: 700; }
+  .count-card .l { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  th, td { text-align: left; padding: .5rem .4rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: .75rem; text-transform: uppercase; }
+  .badge { padding: .15rem .5rem; border-radius: 999px; font-size: .72rem; font-weight: 700; }
+  .badge.SUBMITTED { background: #1e3a8a55; color: #93c5fd; }
+  .badge.UNDER_REVIEW { background: #78350f55; color: var(--amber); }
+  .badge.RESOLVED { background: #065f4655; color: var(--green); }
+  .badge.DISMISSED { background: #7f1d1d55; color: var(--red); }
+  .desc { max-width: 320px; white-space: pre-wrap; }
+  .updates { margin-top: .4rem; font-size: .8rem; color: var(--muted); }
+  .updates div { margin-bottom: .2rem; }
+  .error { color: var(--red); font-size: .85rem; min-height: 1.1em; }
+  .muted { color: var(--muted); font-size: .8rem; }
+  a.file-link { color: var(--accent); text-decoration: none; margin-right: .5rem; }
+  #login-panel.hidden, #app.hidden { display: none; }
+  #login-panel:not(.hidden) { display: block; max-width: 360px; margin: 3rem auto; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>WhistleDrop <span>moderator dashboard</span></h1>
+  <div id="who" class="muted"></div>
+</header>
+
+<main>
+
+  <section id="login-panel" class="panel">
+    <h2 style="margin-top:0">Moderator login</h2>
+    <div class="row">
+      <input id="login-username" placeholder="username" autocomplete="username" />
+      <input id="login-password" placeholder="password" type="password" autocomplete="current-password" />
+      <button onclick="login()">Log in</button>
+    </div>
+    <div id="login-error" class="error"></div>
+    <p class="muted">Nothing here identifies a reporter. This screen only talks to your local API.</p>
+  </section>
+
+  <div id="app" class="hidden">
+
+    <section class="panel">
+      <h2 style="margin-top:0">Overview</h2>
+      <div id="counts" class="counts"></div>
+    </section>
+
+    <section class="panel">
+      <div class="row" style="justify-content:space-between">
+        <h2 style="margin:0">Reports</h2>
+        <button class="secondary" onclick="logout()">Log out</button>
+      </div>
+      <div class="row" style="margin:.75rem 0">
+        <select id="filter-category" onchange="loadReports()">
+          <option value="">All categories</option>
+          <option>SECURITY</option><option>HARASSMENT</option><option>CORRUPTION</option>
+          <option>TECHNICAL</option><option>OTHER</option>
+        </select>
+        <select id="filter-status" onchange="loadReports()">
+          <option value="">All statuses</option>
+          <option>SUBMITTED</option><option>UNDER_REVIEW</option><option>RESOLVED</option><option>DISMISSED</option>
+        </select>
+        <input id="filter-q" placeholder="search description..." oninput="debouncedLoad()" />
+        <button class="secondary" onclick="loadReports()">Refresh</button>
+      </div>
+      <div id="reports-error" class="error"></div>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Category</th><th>Description</th><th>Evidence</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="reports-body"></tbody>
+      </table>
+    </section>
+
+  </div>
+</main>
+
+<script>
+let token = null;
+
+function apiBase() { return window.location.origin; }
+
+async function api(path, options = {}) {
+  const res = await fetch(apiBase() + path, {
+    ...options,
+    headers: { ...(options.headers || {}), ...(token ? { Authorization: "Bearer " + token } : {}) },
+  });
+  if (res.status === 401) { logout("Session expired. Please log in again."); throw new Error("401"); }
+  const text = await res.text();
+  const body = text ? JSON.parse(text) : null;
+  if (!res.ok) throw new Error((body && body.detail) || res.statusText);
+  return body;
+}
+
+async function login() {
+  const username = document.getElementById("login-username").value.trim();
+  const password = document.getElementById("login-password").value;
+  const errBox = document.getElementById("login-error");
+  errBox.textContent = "";
+  try {
+    const res = await fetch(apiBase() + "/moderator/login", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.detail || "Login failed");
+    token = body.access_token;
+    document.getElementById("login-panel").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+    document.getElementById("who").textContent = "Logged in as " + username;
+    document.getElementById("login-password").value = "";
+    refreshAll();
+  } catch (e) {
+    errBox.textContent = e.message;
+  }
+}
+
+function logout(message) {
+  token = null;
+  document.getElementById("app").classList.add("hidden");
+  document.getElementById("login-panel").classList.remove("hidden");
+  document.getElementById("who").textContent = "";
+  if (message) document.getElementById("login-error").textContent = message;
+}
+
+function refreshAll() { loadCounts(); loadReports(); }
+
+async function loadCounts() {
+  try {
+    const summary = await api("/moderator/dashboard");
+    const c = summary.counts;
+    const cards = [["Total", c.total]].concat(Object.entries(c.by_status));
+    document.getElementById("counts").innerHTML = cards
+      .map(([label, n]) => `<div class="count-card"><div class="n">${n}</div><div class="l">${label}</div></div>`)
+      .join("");
+  } catch (e) { /* login screen already shows any auth error */ }
+}
+
+let debounceTimer;
+function debouncedLoad() { clearTimeout(debounceTimer); debounceTimer = setTimeout(loadReports, 300); }
+
+async function loadReports() {
+  const category = document.getElementById("filter-category").value;
+  const status = document.getElementById("filter-status").value;
+  const q = document.getElementById("filter-q").value.trim();
+  const params = new URLSearchParams();
+  if (category) params.set("category", category);
+  if (status) params.set("status", status);
+  if (q) params.set("q", q);
+  const errBox = document.getElementById("reports-error");
+  errBox.textContent = "";
+  try {
+    const reports = await api("/moderator/reports?" + params.toString());
+    renderReports(reports);
+  } catch (e) {
+    errBox.textContent = e.message;
+  }
+}
+
+function renderReports(reports) {
+  const body = document.getElementById("reports-body");
+  if (reports.length === 0) {
+    body.innerHTML = `<tr><td colspan="6" class="muted">No reports match these filters.</td></tr>`;
+    return;
+  }
+  body.innerHTML = reports.map(r => {
+    const updatesHtml = r.updates.length
+      ? `<div class="updates">${r.updates.map(u =>
+          `<div>[${u.new_status}] ${escapeHtml(u.message)}</div>`).join("")}</div>`
+      : "";
+    const filesHtml = r.evidence_files.length
+      ? r.evidence_files.map(f =>
+          `<a class="file-link" target="_blank" href="${apiBase()}/moderator/reports/${r.id}/evidence/${f.id}?token=${encodeURIComponent(token)}">#${f.id}</a>`
+        ).join("")
+      : `<span class="muted">none</span>`;
+    const closed = r.allowed_next_statuses.length === 0;
+    const statusOptions = r.allowed_next_statuses.map(s => `<option value="${s}">${s}</option>`).join("");
+
+    return `
+      <tr>
+        <td>${r.id}</td>
+        <td>${r.category}</td>
+        <td class="desc">${escapeHtml(r.description)}${r.evidence_url ? `<div class="muted">link: ${escapeHtml(r.evidence_url)}</div>` : ""}${updatesHtml}</td>
+        <td>${filesHtml}</td>
+        <td><span class="badge ${r.status}">${r.status}</span></td>
+        <td>
+          ${closed ? `<span class="muted">closed</span>` : `
+            <div class="row">
+              <select id="status-${r.id}">${statusOptions}</select>
+              <input id="msg-${r.id}" placeholder="update message" style="min-width:160px" />
+              <button onclick="changeStatus(${r.id})">Update status</button>
+            </div>
+            <div class="row" style="margin-top:.3rem">
+              <input id="note-${r.id}" placeholder="add a note (no status change)" style="min-width:200px" />
+              <button class="secondary" onclick="addNote(${r.id})">Add note</button>
+            </div>
+          `}
+        </td>
+      </tr>`;
+  }).join("");
+}
+
+async function changeStatus(id) {
+  const status = document.getElementById(`status-${id}`).value;
+  const message = document.getElementById(`msg-${id}`).value.trim();
+  if (!message) { alert("Please add a short message explaining the status change."); return; }
+  try {
+    await api(`/moderator/reports/${id}/status`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status, message }),
+    });
+    refreshAll();
+  } catch (e) { alert(e.message); }
+}
+
+async function addNote(id) {
+  const message = document.getElementById(`note-${id}`).value.trim();
+  if (!message) return;
+  try {
+    await api(`/moderator/reports/${id}/notes`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+    });
+    refreshAll();
+  } catch (e) { alert(e.message); }
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+</script>
+</body>
+</html>
